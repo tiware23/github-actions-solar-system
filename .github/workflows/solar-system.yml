@@ -63,37 +63,34 @@ jobs:
             retention-days: 5
     dev-deploy:
       needs: docker
-      name: Deploy Dev
       runs-on: ubuntu-latest
-      environment: 
+      environment:
         name: development
       steps:
-        - name: Checkout App Repository
-          uses: actions/checkout@v4
-        - name: Install kubectl CLI
-          uses: azure/setup-kubectl@v4
+        - uses: actions/checkout@v4
+        - uses: azure/setup-kubectl@v4
           with:
             version: v1.28.1
-          id: install
-        - name: Set K8s Context
-          uses: azure/k8s-set-context@v4
+        - uses: azure/k8s-set-context@v3
           with:
             method: kubeconfig
-            kubeconfig: ${{ secrets.KUBECONFIG }}
-        - name: Fetch Kubernetes cluster Details
-          run: kubectl version -o yaml
-        - name: Save Nginx Ingress Controller IP as a GH Env variable
-          run: |
-            echo "INGRESS_IP=$(kubectl -n ingress-nginx get services ingress-nginx-controller -o jsonpath="{.status.loadBalancer.ingress[0].ip}")" >> $GITHUB_ENV
-        - name: Replace Token in Manifest files
-          uses: cschleiden/replace-tokens@v1
+            kubeconfig: '${{ secrets.KUBECONFIG }}'
+        - run: kubectl version --short -o yaml
+  # Below codes are added to complete the task
+        - run: >
+            echo "INGRESS_IP=$(kubectl -n ingress-nginx get services
+            ingress-nginx-controller -o
+            jsonpath='{.status.loadBalancer.ingress[0].ip}')" >> $GITHUB_ENV
+        - uses: cschleiden/replace-tokens@v1
           with:
             tokenPrefix: '_{_'
             tokenSuffix: '_}_'
             files: '["kubernetes/development/*.yaml"]'
           env:
-            NAMESPACE: ${{ vars.NAMESPACE }}
-            REPLICAS: ${{ vars.REPLICAS }}
-            IMAGE: ghcr.io/${{ github.repository_owner }}/solar-system:${{ github.sha }}
-            INGRESS_IP: ${{ env.INGRESS_IP }}
+            NAMESPACE: '${{ vars.NAMESPACE }}'
+            REPLICAS: '${{ vars.REPLICAS }}'
+            IMAGE: >-
+              ghcr.io/${{ github.repository_owner }}/solar-system:${{ github.sha
+              }}
+            INGRESS_IP: '${{ env.INGRESS_IP }}'
         - run: cat kubernetes/development/*.yaml
